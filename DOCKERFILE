@@ -1,0 +1,8 @@
+# Use the official Go image as the base image
+FROM golang:latest
+
+# Set the working directory in the container
+WORKDIR /MIT-distributed-system/src/main
+
+# Install tmux
+RUN apt-get update && apt-get install -y tmux && rm -rf /var/lib/apt/lists/*
