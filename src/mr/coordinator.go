@@ -53,7 +53,7 @@ type WorkerAssignment struct {
 type Coordinator struct {
 	MapTasks    []MapTask
 	ReduceTasks []ReduceTask
-	Workers     map[int]*WorkerAssignment
+	Workers     map[string]*WorkerAssignment
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -122,7 +122,7 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	// Your code here.
 	mapTasks := initMapTasks(files)
 	reduceTasks := initReduceTasks(nReduce)
-	workers := make(map[int]*WorkerAssignment)
+	workers := make(map[string]*WorkerAssignment)
 	c := Coordinator{MapTasks: mapTasks, ReduceTasks: reduceTasks, Workers: workers}
 	c.server()
 	return &c

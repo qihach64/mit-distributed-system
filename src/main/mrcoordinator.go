@@ -54,6 +54,6 @@ func printReduceTasks(m *mr.Coordinator) {
 
 func printWorkerAssignments(m *mr.Coordinator) {
 	for i, assignment := range m.Workers {
-		fmt.Printf("worker_id=%d: status=%v mapTask=%v reduceTask=%v\n", i, assignment.Status, assignment.MapTask, assignment.ReduceTask)
+		fmt.Printf("worker_id=%s: status=%v mapTask=%v reduceTask=%v\n", i, assignment.Status, assignment.MapTask, assignment.ReduceTask)
 	}
 }

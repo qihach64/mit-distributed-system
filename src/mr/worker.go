@@ -5,6 +5,8 @@ import (
 	"hash/fnv"
 	"log"
 	"net/rpc"
+
+	"github.com/google/uuid"
 )
 
 // Map functions return a slice of KeyValue.
@@ -22,14 +24,19 @@ func ihash(key string) int {
 }
 
 type Worker struct {
+	ID         string //UUID for the worker
 	MapFunc    func(string, string) []KeyValue
 	ReduceFunc func(string, []string) string
 }
 
-// main/mrworker.go calls this function.
-func CreateWorker(mapf func(string, string) []KeyValue,
-	reducef func(string, []string) string) *Worker {
-	return &Worker{MapFunc: mapf, ReduceFunc: reducef}
+func CreateWorker(mapf func(string, string) []KeyValue, reducef func(string, []string) string) *Worker {
+	// When generating a unique identifier for the worker, we use a UUID (Universally Unique Identifier)
+	// which is a 128-bit number that is guaranteed to be unique across time and space.
+	// UUIDs are 36-character alphanumeric strings.
+	// They are written in 5 groups of hexadecimal digits separated by hyphens[3]. The length of each group is: 8-4-4-4-12[3].
+	// For example, a UUID could look like this: acde070d-8c4c-4f0d-9d8a-162843c10333
+	id := uuid.New().String()
+	return &Worker{ID: id, MapFunc: mapf, ReduceFunc: reducef}
 }
 
 func (w *Worker) Run() {
@@ -55,8 +62,7 @@ func (w *Worker) Run() {
 }
 
 func (w *Worker) GetTaskAssignment() *WorkerAssignment {
-	workerID := 1
-	request := GetTaskAssignmentRequest{WorkerID: workerID}
+	request := GetTaskAssignmentRequest{WorkerID: w.ID}
 	response := GetTaskAssignmentResponse{}
 	ok := call("Coordinator.GetTaskAssignment", &request, &response)
 	if !ok {

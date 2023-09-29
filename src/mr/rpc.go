@@ -26,7 +26,7 @@ type ExampleReply struct {
 
 // Add your RPC definitions here.
 type GetTaskAssignmentRequest struct {
-	WorkerID int
+	WorkerID string
 }
 
 type GetTaskAssignmentResponse struct {
