@@ -45,15 +45,15 @@ type ReduceTask struct {
 }
 
 type WorkerAssignment struct {
-	Status       WorkerStatus
-	MapTaskID    int // -1 if no map task is assigned
-	ReduceTaskID int // -1 if no reduce task is assigned
+	Status     WorkerStatus
+	MapTask    *MapTask
+	ReduceTask *ReduceTask
 }
 
 type Coordinator struct {
 	MapTasks    []MapTask
 	ReduceTasks []ReduceTask
-	Workers     map[int]WorkerAssignment
+	Workers     map[int]*WorkerAssignment
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -63,6 +63,29 @@ type Coordinator struct {
 // the RPC argument and reply types are defined in rpc.go.
 func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
 	reply.Y = args.X + 1
+	return nil
+}
+
+func (c *Coordinator) GetTaskAssignment(
+	request *GetTaskAssignmentRequest, response *GetTaskAssignmentResponse) error {
+	for mapID, m := range c.MapTasks {
+		if m.Status == TODO {
+			c.MapTasks[mapID].Status = IN_PROGRESS
+			assignment := &WorkerAssignment{Status: MAP, MapTask: &c.MapTasks[mapID]}
+			c.Workers[request.WorkerID] = assignment
+			response.Task = assignment
+			return nil
+		}
+	}
+	for reduceID, r := range c.ReduceTasks {
+		if r.Status == TODO {
+			c.ReduceTasks[reduceID].Status = IN_PROGRESS
+			assignment := &WorkerAssignment{Status: REDUCE, ReduceTask: &c.ReduceTasks[reduceID]}
+			c.Workers[request.WorkerID] = assignment
+			response.Task = assignment
+			return nil
+		}
+	}
 	return nil
 }
 
@@ -99,7 +122,7 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	// Your code here.
 	mapTasks := initMapTasks(files)
 	reduceTasks := initReduceTasks(nReduce)
-	workers := make(map[int]WorkerAssignment)
+	workers := make(map[int]*WorkerAssignment)
 	c := Coordinator{MapTasks: mapTasks, ReduceTasks: reduceTasks, Workers: workers}
 	c.server()
 	return &c

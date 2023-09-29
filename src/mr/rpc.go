@@ -25,7 +25,12 @@ type ExampleReply struct {
 }
 
 // Add your RPC definitions here.
-type GetMapTaskRequest struct {
+type GetTaskAssignmentRequest struct {
+	WorkerID int
+}
+
+type GetTaskAssignmentResponse struct {
+	Task *WorkerAssignment
 }
 
 // Cook up a unique-ish UNIX-domain socket name

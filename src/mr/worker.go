@@ -33,30 +33,38 @@ func CreateWorker(mapf func(string, string) []KeyValue,
 }
 
 func (w *Worker) Run() {
-	for {
-		// 1. ask the coordinator for a task
-		assignment, hasMoreTasks := w.GetAssignment()
-		if !hasMoreTasks {
-			break
-		}
-
-		// 2. execute the task
-		if assignment.Status == MAP {
-			w.DoMapTask(assignment)
-		} else if assignment.Status == REDUCE {
-			w.DoReduceTask(assignment)
-		} else {
-			log.Fatalf("Unexpected worker assignment status: %v\n", assignment.Status)
-		}
-
-		// 3. report the result to the coordinator
-		w.NotifyCompletion(assignment)
+	// for {
+	// 1. ask the coordinator for a task
+	assignment := w.GetTaskAssignment()
+	if assignment == nil {
+		return
 	}
+
+	// 2. execute the task
+	if assignment.Status == MAP {
+		w.DoMapTask(assignment)
+	} else if assignment.Status == REDUCE {
+		w.DoReduceTask(assignment)
+	} else {
+		log.Fatalf("Unexpected worker assignment status: %v\n", assignment.Status)
+	}
+
+	// 3. report the result to the coordinator
+	w.NotifyCompletion(assignment)
+	// }
 }
 
-func (w *Worker) GetAssignment() (*WorkerAssignment, bool) {
-	fmt.Printf("Worker: got assignment hasMoreTask=%v\n", false)
-	return nil, false
+func (w *Worker) GetTaskAssignment() *WorkerAssignment {
+	workerID := 1
+	request := GetTaskAssignmentRequest{WorkerID: workerID}
+	response := GetTaskAssignmentResponse{}
+	ok := call("Coordinator.GetTaskAssignment", &request, &response)
+	if !ok {
+		fmt.Printf("GetTaskAssignment failed!\n")
+		return nil
+	}
+	fmt.Printf("GetTaskAssignment response: %v\n", response)
+	return response.Task
 }
 
 func (w *Worker) DoMapTask(assignment *WorkerAssignment) {

@@ -28,6 +28,7 @@ func main() {
 	for m.Done() == false {
 		time.Sleep(time.Second)
 		fmt.Printf("Coordinator: waiting for tasks to execute...\n")
+		debugInfo(m)
 	}
 
 	time.Sleep(time.Second)
@@ -53,6 +54,6 @@ func printReduceTasks(m *mr.Coordinator) {
 
 func printWorkerAssignments(m *mr.Coordinator) {
 	for i, assignment := range m.Workers {
-		fmt.Printf("worker_id=%d: status=%s\n", i, assignment.Status)
+		fmt.Printf("worker_id=%d: status=%v mapTask=%v reduceTask=%v\n", i, assignment.Status, assignment.MapTask, assignment.ReduceTask)
 	}
 }
