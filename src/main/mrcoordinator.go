@@ -24,8 +24,7 @@ func main() {
 	}
 
 	m := mr.MakeCoordinator(os.Args[1:], 10)
-	printMapTasks(m)
-	printReduceTasks(m)
+	debugInfo(m)
 	for m.Done() == false {
 		time.Sleep(time.Second)
 		fmt.Printf("Coordinator: waiting for tasks to execute...\n")
@@ -34,17 +33,26 @@ func main() {
 	time.Sleep(time.Second)
 }
 
+func debugInfo(m *mr.Coordinator) {
+	printMapTasks(m)
+	printReduceTasks(m)
+	printWorkerAssignments(m)
+}
+
 func printMapTasks(m *mr.Coordinator) {
 	for i, task := range m.MapTasks {
-		fmt.Printf("Task %d: file=%s, status=%v\n", i, task.File, task.Status)
+		fmt.Printf("map_id=%d: status=%s, input_file=%s\n", i, task.Status, task.InputFile)
 	}
 }
 
 func printReduceTasks(m *mr.Coordinator) {
 	for i, task := range m.ReduceTasks {
-		fmt.Printf("Task %d: id=%d, status=%v\n", i, task.ReduceID, task.Status)
-		for file, status := range task.ImmediateFileStatus {
-			fmt.Printf("Immediate files:  %s: %v\n", file, status)
-		}
+		fmt.Printf("reduce_id=%d: status=%s, files=%v\n", i, task.Status, task.ImmediateFiles)
+	}
+}
+
+func printWorkerAssignments(m *mr.Coordinator) {
+	for i, assignment := range m.Workers {
+		fmt.Printf("worker_id=%d: status=%s\n", i, assignment.Status)
 	}
 }
