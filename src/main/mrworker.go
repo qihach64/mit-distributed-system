@@ -28,7 +28,9 @@ func main() {
 	mapf, reducef := loadPlugin(os.Args[1])
 
 	worker := mr.CreateWorker(mapf, reducef)
-	worker.Run()
+	if err := worker.Run(); err != nil {
+		log.Fatalf("worker.Run failed with error: %v\n%+v", err, err)
+	}
 }
 
 // load the application Map and Reduce functions

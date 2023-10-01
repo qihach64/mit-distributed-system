@@ -53,7 +53,7 @@ func printReduceTasks(m *mr.Coordinator) {
 }
 
 func printWorkerAssignments(m *mr.Coordinator) {
-	for i, assignment := range m.Workers {
-		fmt.Printf("worker_id=%s: status=%v mapTask=%v reduceTask=%v\n", i, assignment.Status, assignment.MapTask, assignment.ReduceTask)
+	for i, task := range m.Workers {
+		fmt.Printf("worker_id=%s: Task=%v\n", i, task.GetType())
 	}
 }

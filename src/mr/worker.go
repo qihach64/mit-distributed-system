@@ -1,10 +1,13 @@
 package mr
 
 import (
+	"encoding/gob"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"log"
 	"net/rpc"
+	"os"
 
 	"github.com/google/uuid"
 )
@@ -39,95 +42,103 @@ func CreateWorker(mapf func(string, string) []KeyValue, reducef func(string, []s
 	return &Worker{ID: id, MapFunc: mapf, ReduceFunc: reducef}
 }
 
-func (w *Worker) Run() {
+func (w *Worker) Run() error {
+	gob.Register(MapTask{})
+	gob.Register(ReduceTask{})
 	// for {
 	// 1. ask the coordinator for a task
-	assignment := w.GetTaskAssignment()
-	if assignment == nil {
-		return
+	task, err := w.GetTask()
+	if err != nil {
+		return err
 	}
-
 	// 2. execute the task
-	if assignment.Status == MAP {
-		w.DoMapTask(assignment)
-	} else if assignment.Status == REDUCE {
-		w.DoReduceTask(assignment)
+	if task.GetType() == MAP {
+		err := w.DoMapTask(task.(MapTask))
+		if err != nil {
+			return err
+		}
 	} else {
-		log.Fatalf("Unexpected worker assignment status: %v\n", assignment.Status)
+		w.DoReduceTask(task.(ReduceTask))
 	}
-
-	// 3. report the result to the coordinator
-	w.NotifyCompletion(assignment)
+	return nil
 	// }
 }
 
-func (w *Worker) GetTaskAssignment() *WorkerAssignment {
-	request := GetTaskAssignmentRequest{WorkerID: w.ID}
-	response := GetTaskAssignmentResponse{}
-	ok := call("Coordinator.GetTaskAssignment", &request, &response)
-	if !ok {
-		fmt.Printf("GetTaskAssignment failed!\n")
-		return nil
+func (w *Worker) GetTask() (Task, error) {
+	request := GetTaskRequest{WorkerID: w.ID}
+	response := GetTaskResponse{}
+	if err := call("Coordinator.GetTask", &request, &response); err != nil {
+		return nil, err
 	}
-	fmt.Printf("GetTaskAssignment response: %v\n", response)
-	return response.Task
+	return response.Task, nil
 }
 
-func (w *Worker) DoMapTask(assignment *WorkerAssignment) {
-	// TODO: implement DoMapTask
+func (w *Worker) DoMapTask(mapTask MapTask) error {
+	filename := mapTask.InputFile
+	content, err := readFileContent(filename)
+	if err != nil {
+		return err
+	}
+	kvs := w.MapFunc(filename, content)
+
+	fileMap := make(map[int]*os.File)
+	defer func() {
+		for _, file := range fileMap {
+			file.Close()
+		}
+	}()
+
+	for _, kv := range kvs {
+		reduceID := ihash(kv.Key) % mapTask.ReduceNum
+		immediateFileName := fmt.Sprintf("mr-%d-%d", mapTask.ID, reduceID)
+		if _, exist := fileMap[reduceID]; !exist {
+			ofile, err := os.OpenFile(immediateFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+			if err != nil {
+				return err
+			}
+			fileMap[reduceID] = ofile
+		}
+		fmt.Fprintf(fileMap[reduceID], "%v %v\n", kv.Key, kv.Value)
+	}
+	return nil
 }
 
-func (w *Worker) DoReduceTask(assignment *WorkerAssignment) {
+func (w *Worker) DoReduceTask(reduceTask ReduceTask) {
 	// TODO: implement DoReduceTask
 }
 
-func (w *Worker) NotifyCompletion(assignment *WorkerAssignment) {
-	// TODO: implement NotifyCompletion
+func (w *Worker) UpdateTask(task Task, success bool) {
+	// TODO: implement UpdateTask
 }
 
-// example function to show how to make an RPC call to the coordinator.
-//
-// the RPC argument and reply types are defined in rpc.go.
-func CallExample() {
-
-	// declare an argument structure.
-	args := ExampleArgs{}
-
-	// fill in the argument(s).
-	args.X = 99
-
-	// declare a reply structure.
-	reply := ExampleReply{}
-
-	// send the RPC request, wait for the reply.
-	// the "Coordinator.Example" tells the
-	// receiving server that we'd like to call
-	// the Example() method of struct Coordinator.
-	ok := call("Coordinator.Example", &args, &reply)
-	if ok {
-		// reply.Y should be 100.
-		fmt.Printf("reply.Y %v\n", reply.Y)
-	} else {
-		fmt.Printf("call failed!\n")
+func readFileContent(filename string) (string, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return "", err
 	}
+	content, err := io.ReadAll(f)
+	if err != nil {
+		return "", err
+	}
+	f.Close()
+	return string(content), nil
 }
 
 // send an RPC request to the coordinator, wait for the response.
 // usually returns true.
 // returns false if something goes wrong.
-func call(rpcname string, args interface{}, reply interface{}) bool {
+func call(rpcname string, args interface{}, reply interface{}) error {
 	// c, err := rpc.DialHTTP("tcp", "127.0.0.1"+":1234")
 	sockname := coordinatorSock()
 	c, err := rpc.DialHTTP("unix", sockname)
 	if err != nil {
-		log.Fatal("dialing:", err)
+		return err
 	}
 	defer c.Close()
 
 	err = c.Call(rpcname, args, reply)
 	if err != nil {
-		fmt.Println(err)
-		return false
+		log.Fatalf("call %s failed with error: %v\n%+v", rpcname, err, err)
 	}
-	return true
+	return err
 }
