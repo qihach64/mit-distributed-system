@@ -61,7 +61,9 @@ func (r ReduceTask) GetType() TaskType {
 type Coordinator struct {
 	MapTasks    []MapTask
 	ReduceTasks []ReduceTask
-	Workers     map[string]Task
+	// The key is the worker id, the value is the task assigned to the worker
+	// if the task is nil, it means the worker is idle
+	Workers map[string]Task
 }
 
 func (c *Coordinator) GetTask(
@@ -92,17 +94,17 @@ func (c *Coordinator) UpdateTask(request *UpdateTaskRequest, response *UpdateTas
 	if request.Task.GetType() == MAP {
 		mapTask := request.Task.(MapTask)
 		if mapTask.ID < 0 || mapTask.ID >= len(c.MapTasks) {
-			return fmt.Errorf("Invalid map task id: %d", mapTask.ID)
+			return fmt.Errorf("invalid map task id: %d", mapTask.ID)
 		}
 		c.MapTasks[mapTask.ID] = mapTask
 	} else {
 		reduceTask := request.Task.(ReduceTask)
 		c.ReduceTasks[reduceTask.ID] = reduceTask
 		if reduceTask.ID < 0 || reduceTask.ID >= len(c.ReduceTasks) {
-			return fmt.Errorf("Invalid reduce task id: %d", reduceTask.ID)
+			return fmt.Errorf("invalid reduce task id: %d", reduceTask.ID)
 		}
 	}
-	c.Workers[request.WorkerID] = request.Task
+	c.Workers[request.WorkerID] = nil
 	return nil
 }
 
