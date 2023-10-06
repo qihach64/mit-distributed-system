@@ -39,7 +39,6 @@ type UpdateTaskRequest struct {
 }
 
 type UpdateTaskResponse struct {
-	Task Task
 }
 
 // Cook up a unique-ish UNIX-domain socket name

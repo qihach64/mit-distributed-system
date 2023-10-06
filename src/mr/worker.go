@@ -53,12 +53,19 @@ func (w *Worker) Run() error {
 	}
 	// 2. execute the task
 	if task.GetType() == MAP {
-		err := w.DoMapTask(task.(MapTask))
-		if err != nil {
+		mapTask := task.(MapTask)
+		if err := w.DoMapTask(mapTask); err != nil {
 			return err
 		}
+		mapTask.Status = DONE
+		w.UpdateTask(mapTask)
 	} else {
-		w.DoReduceTask(task.(ReduceTask))
+		reduceTask := task.(ReduceTask)
+		if err := w.DoReduceTask(reduceTask); err != nil {
+			return err
+		}
+		reduceTask.Status = DONE
+		w.UpdateTask(reduceTask)
 	}
 	return nil
 	// }
@@ -103,12 +110,18 @@ func (w *Worker) DoMapTask(mapTask MapTask) error {
 	return nil
 }
 
-func (w *Worker) DoReduceTask(reduceTask ReduceTask) {
-	// TODO: implement DoReduceTask
+func (w *Worker) UpdateTask(task Task) error {
+	request := UpdateTaskRequest{WorkerID: w.ID, Task: task}
+	response := GetTaskResponse{}
+	if err := call("Coordinator.UpdateTask", &request, &response); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (w *Worker) UpdateTask(task Task, success bool) {
-	// TODO: implement UpdateTask
+func (w *Worker) DoReduceTask(reduceTask ReduceTask) error {
+	// TODO: implement DoReduceTask
+	return nil
 }
 
 func readFileContent(filename string) (string, error) {

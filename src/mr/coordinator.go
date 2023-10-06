@@ -72,7 +72,7 @@ func (c *Coordinator) GetTask(
 			c.MapTasks[mapID].Status = IN_PROGRESS
 			c.MapTasks[mapID].ReduceNum = len(c.ReduceTasks)
 			c.Workers[request.WorkerID] = c.MapTasks[mapID]
-			response.Task = &c.MapTasks[mapID]
+			response.Task = c.MapTasks[mapID]
 			return nil
 		}
 	}
@@ -80,10 +80,29 @@ func (c *Coordinator) GetTask(
 		if r.Status == TODO {
 			c.ReduceTasks[reduceID].Status = IN_PROGRESS
 			c.Workers[request.WorkerID] = c.ReduceTasks[reduceID]
-			response.Task = &c.ReduceTasks[reduceID]
+			response.Task = c.ReduceTasks[reduceID]
 			return nil
 		}
 	}
+	return nil
+}
+
+func (c *Coordinator) UpdateTask(request *UpdateTaskRequest, response *UpdateTaskResponse) error {
+	fmt.Printf("UpdateTask request: %v\n", request)
+	if request.Task.GetType() == MAP {
+		mapTask := request.Task.(MapTask)
+		if mapTask.ID < 0 || mapTask.ID >= len(c.MapTasks) {
+			return fmt.Errorf("Invalid map task id: %d", mapTask.ID)
+		}
+		c.MapTasks[mapTask.ID] = mapTask
+	} else {
+		reduceTask := request.Task.(ReduceTask)
+		c.ReduceTasks[reduceTask.ID] = reduceTask
+		if reduceTask.ID < 0 || reduceTask.ID >= len(c.ReduceTasks) {
+			return fmt.Errorf("Invalid reduce task id: %d", reduceTask.ID)
+		}
+	}
+	c.Workers[request.WorkerID] = request.Task
 	return nil
 }
 
