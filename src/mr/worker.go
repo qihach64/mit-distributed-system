@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/rpc"
 	"os"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -45,30 +46,30 @@ func CreateWorker(mapf func(string, string) []KeyValue, reducef func(string, []s
 func (w *Worker) Run() error {
 	gob.Register(MapTask{})
 	gob.Register(ReduceTask{})
-	// for {
-	// 1. ask the coordinator for a task
-	task, err := w.GetTask()
-	if err != nil {
-		return err
-	}
-	// 2. execute the task
-	if task.GetType() == MAP {
-		mapTask := task.(MapTask)
-		if err := w.DoMapTask(mapTask); err != nil {
+	for {
+		// 1. ask the coordinator for a task
+		task, err := w.GetTask()
+		if err != nil {
 			return err
+		} // 2. execute the task
+		if task == nil {
+			log.Printf("No task to execute, worker %s is waiting ... \n", w.ID)
+			time.Sleep(time.Second)
 		}
-		mapTask.Status = DONE
-		w.UpdateTask(mapTask)
-	} else {
-		reduceTask := task.(ReduceTask)
-		if err := w.DoReduceTask(reduceTask); err != nil {
-			return err
+		if task.GetType() == MAP {
+			mapTask := task.(MapTask)
+			if err := w.DoMapTask(&mapTask); err != nil {
+				return err
+			}
+		} else {
+			reduceTask := task.(ReduceTask)
+			if err := w.DoReduceTask(&reduceTask); err != nil {
+				return err
+			}
 		}
-		reduceTask.Status = DONE
-		w.UpdateTask(reduceTask)
+		// 3. update the coordinator marking the task status as Done
+		w.MarkTaskAsDone(task)
 	}
-	return nil
-	// }
 }
 
 func (w *Worker) GetTask() (Task, error) {
@@ -80,7 +81,7 @@ func (w *Worker) GetTask() (Task, error) {
 	return response.Task, nil
 }
 
-func (w *Worker) DoMapTask(mapTask MapTask) error {
+func (w *Worker) DoMapTask(mapTask *MapTask) error {
 	filename := mapTask.InputFile
 	content, err := readFileContent(filename)
 	if err != nil {
@@ -110,17 +111,18 @@ func (w *Worker) DoMapTask(mapTask MapTask) error {
 	return nil
 }
 
-func (w *Worker) UpdateTask(task Task) error {
-	request := UpdateTaskRequest{WorkerID: w.ID, Task: task}
-	response := GetTaskResponse{}
-	if err := call("Coordinator.UpdateTask", &request, &response); err != nil {
+func (w *Worker) MarkTaskAsDone(task Task) error {
+	request := MarkTaskAsDoneRequest{WorkerID: w.ID, Task: task}
+	response := MarkTaskAsDoneResponse{}
+	if err := call("Coordinator.MarkTaskAsDone", &request, &response); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (w *Worker) DoReduceTask(reduceTask ReduceTask) error {
+func (w *Worker) DoReduceTask(reduceTask *ReduceTask) error {
 	// TODO: implement DoReduceTask
+	println("Work Do Reduce Task")
 	return nil
 }
 

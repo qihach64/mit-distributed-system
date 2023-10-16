@@ -35,6 +35,7 @@ func (s TaskType) String() string {
 
 type Task interface {
 	GetType() TaskType
+	GetStatus() TaskStatus
 }
 
 type MapTask struct {
@@ -48,6 +49,10 @@ func (m MapTask) GetType() TaskType {
 	return MAP
 }
 
+func (m MapTask) GetStatus() TaskStatus {
+	return m.Status
+}
+
 type ReduceTask struct {
 	ID             int
 	Status         TaskStatus      // The status of the reduce task
@@ -56,6 +61,10 @@ type ReduceTask struct {
 
 func (r ReduceTask) GetType() TaskType {
 	return REDUCE
+}
+
+func (r ReduceTask) GetStatus() TaskStatus {
+	return r.Status
 }
 
 type Coordinator struct {
@@ -89,20 +98,21 @@ func (c *Coordinator) GetTask(
 	return nil
 }
 
-func (c *Coordinator) UpdateTask(request *UpdateTaskRequest, response *UpdateTaskResponse) error {
-	fmt.Printf("UpdateTask request: %v\n", request)
+func (c *Coordinator) MarkTaskAsDone(request *MarkTaskAsDoneRequest, response *MarkTaskAsDoneResponse) error {
+	fmt.Printf("MarkTaskAsDone request: %v\n", request)
 	if request.Task.GetType() == MAP {
 		mapTask := request.Task.(MapTask)
 		if mapTask.ID < 0 || mapTask.ID >= len(c.MapTasks) {
 			return fmt.Errorf("invalid map task id: %d", mapTask.ID)
 		}
-		c.MapTasks[mapTask.ID] = mapTask
+		c.MapTasks[mapTask.ID].Status = DONE
 	} else {
 		reduceTask := request.Task.(ReduceTask)
 		c.ReduceTasks[reduceTask.ID] = reduceTask
 		if reduceTask.ID < 0 || reduceTask.ID >= len(c.ReduceTasks) {
 			return fmt.Errorf("invalid reduce task id: %d", reduceTask.ID)
 		}
+		c.ReduceTasks[reduceTask.ID].Status = DONE
 	}
 	c.Workers[request.WorkerID] = nil
 	return nil

@@ -41,6 +41,14 @@ type UpdateTaskRequest struct {
 type UpdateTaskResponse struct {
 }
 
+type MarkTaskAsDoneRequest struct {
+	Task     Task
+	WorkerID string
+}
+
+type MarkTaskAsDoneResponse struct {
+}
+
 // Cook up a unique-ish UNIX-domain socket name
 // in /var/tmp, for the coordinator.
 // Can't use the current directory since
