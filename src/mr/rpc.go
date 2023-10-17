@@ -7,6 +7,7 @@ package mr
 //
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 )
@@ -47,6 +48,16 @@ type MarkTaskAsDoneRequest struct {
 }
 
 type MarkTaskAsDoneResponse struct {
+}
+
+type RpcConnectionError struct {
+	RPCName string
+	Args    interface{}
+	Err     error
+}
+
+func (e *RpcConnectionError) Error() string {
+	return fmt.Sprintf("RPC call %s with args %+v failed with connection error: %v", e.RPCName, e.Args, e.Err)
 }
 
 // Cook up a unique-ish UNIX-domain socket name

@@ -12,7 +12,7 @@ FILES=pg*.txt
 .PHONY: run
 
 coordinator:
-	go run mrcoordinator.go pg-being_*.txt
+	go run mrcoordinator.go pg-*.txt
 
 worker:
 	go build -buildmode=plugin -o wc.so ../mrapps/wc.go && go run mrworker.go wc.so

@@ -7,6 +7,7 @@ import (
 	"hash/fnv"
 	"io"
 	"log"
+	"net"
 	"net/rpc"
 	"os"
 	"sort"
@@ -220,6 +221,9 @@ func call(rpcname string, args interface{}, reply interface{}) error {
 	sockname := coordinatorSock()
 	c, err := rpc.DialHTTP("unix", sockname)
 	if err != nil {
+		if opErr, ok := err.(*net.OpError); ok && opErr.Op == "dial" {
+			return &RpcConnectionError{RPCName: rpcname, Args: args, Err: err}
+		}
 		return err
 	}
 	defer c.Close()

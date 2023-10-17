@@ -29,6 +29,10 @@ func main() {
 
 	worker := mr.CreateWorker(mapf, reducef)
 	if err := worker.Run(); err != nil {
+		if rpcErr, ok := err.(*mr.RpcConnectionError); ok {
+			log.Printf("worker exit due to: %v\n", rpcErr)
+			return
+		}
 		log.Fatalf("worker.Run failed with error: %v\n%+v", err, err)
 	}
 }
