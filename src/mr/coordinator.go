@@ -39,10 +39,11 @@ type Task interface {
 }
 
 type MapTask struct {
-	ID        int
-	Status    TaskStatus
-	InputFile string
-	ReduceNum int
+	ID             int
+	Status         TaskStatus
+	InputFile      string
+	ReduceNum      int
+	ImmediateFiles map[int]string // reduce id -> file name
 }
 
 func (m MapTask) GetType() TaskType {
@@ -81,7 +82,6 @@ func (c *Coordinator) GetTask(
 	for mapID, m := range c.MapTasks {
 		if m.Status == TODO {
 			c.MapTasks[mapID].Status = IN_PROGRESS
-			c.MapTasks[mapID].ReduceNum = len(c.ReduceTasks)
 			c.Workers[request.WorkerID] = c.MapTasks[mapID]
 			response.Task = c.MapTasks[mapID]
 			return nil
@@ -106,6 +106,9 @@ func (c *Coordinator) MarkTaskAsDone(request *MarkTaskAsDoneRequest, response *M
 			return fmt.Errorf("invalid map task id: %d", mapTask.ID)
 		}
 		c.MapTasks[mapTask.ID].Status = DONE
+		for reduceID, immediateFile := range mapTask.ImmediateFiles {
+			c.ReduceTasks[reduceID].ImmediateFiles[immediateFile] = true
+		}
 	} else {
 		reduceTask := request.Task.(ReduceTask)
 		c.ReduceTasks[reduceTask.ID] = reduceTask
@@ -151,7 +154,7 @@ func (c *Coordinator) Done() bool {
 // nReduce is the number of reduce tasks to use.
 func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	// Your code here.
-	mapTasks := initMapTasks(files)
+	mapTasks := initMapTasks(files, nReduce)
 	reduceTasks := initReduceTasks(nReduce)
 	workers := make(map[string]Task)
 	c := Coordinator{MapTasks: mapTasks, ReduceTasks: reduceTasks, Workers: workers}
@@ -159,10 +162,16 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	return &c
 }
 
-func initMapTasks(files []string) []MapTask {
+func initMapTasks(files []string, nReduce int) []MapTask {
 	m := make([]MapTask, len(files))
 	for i, fileName := range files {
-		m[i] = MapTask{ID: i, InputFile: fileName, Status: TODO}
+		m[i] = MapTask{
+			ID:             i,
+			InputFile:      fileName,
+			Status:         TODO,
+			ReduceNum:      nReduce,
+			ImmediateFiles: make(map[int]string, nReduce),
+		}
 	}
 	return m
 }

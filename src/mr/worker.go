@@ -1,6 +1,7 @@
 package mr
 
 import (
+	"bufio"
 	"encoding/gob"
 	"fmt"
 	"hash/fnv"
@@ -8,6 +9,8 @@ import (
 	"log"
 	"net/rpc"
 	"os"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,6 +21,14 @@ type KeyValue struct {
 	Key   string
 	Value string
 }
+
+// for sorting by key.
+type ByKey []KeyValue
+
+// for sorting by key.
+func (a ByKey) Len() int           { return len(a) }
+func (a ByKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
 
 // use ihash(key) % NReduce to choose the reduce
 // task number for each KeyValue emitted by Map.
@@ -55,14 +66,17 @@ func (w *Worker) Run() error {
 		if task == nil {
 			log.Printf("No task to execute, worker %s is waiting ... \n", w.ID)
 			time.Sleep(time.Second)
+			continue
 		}
 		if task.GetType() == MAP {
 			mapTask := task.(MapTask)
+			log.Printf("Worker %s is executing map task %+v\n", w.ID, mapTask)
 			if err := w.DoMapTask(&mapTask); err != nil {
 				return err
 			}
 		} else {
 			reduceTask := task.(ReduceTask)
+			log.Printf("Worker %s is executing reduce task %+v\n", w.ID, reduceTask)
 			if err := w.DoReduceTask(&reduceTask); err != nil {
 				return err
 			}
@@ -105,6 +119,7 @@ func (w *Worker) DoMapTask(mapTask *MapTask) error {
 				return err
 			}
 			fileMap[reduceID] = ofile
+			mapTask.ImmediateFiles[reduceID] = immediateFileName
 		}
 		fmt.Fprintf(fileMap[reduceID], "%v %v\n", kv.Key, kv.Value)
 	}
@@ -121,9 +136,67 @@ func (w *Worker) MarkTaskAsDone(task Task) error {
 }
 
 func (w *Worker) DoReduceTask(reduceTask *ReduceTask) error {
-	// TODO: implement DoReduceTask
-	println("Work Do Reduce Task")
+	var intermediate []KeyValue
+	for immediateFileName := range reduceTask.ImmediateFiles {
+		kvs, err := readIntermediateFile(immediateFileName)
+		if err != nil {
+			return err
+		}
+		intermediate = append(intermediate, kvs...)
+	}
+
+	sort.Sort(ByKey(intermediate))
+
+	//
+	// call Reduce on each distinct key in intermediate[],
+	// and print the result to mr-out-0.
+	//
+	oname := fmt.Sprintf("mr-out-%d", reduceTask.ID)
+	ofile, err := os.Create(oname)
+	if err != nil {
+		return err
+	}
+	defer ofile.Close()
+	i := 0
+	for i < len(intermediate) {
+		j := i + 1
+		for j < len(intermediate) && intermediate[j].Key == intermediate[i].Key {
+			j++
+		}
+		values := []string{}
+		for k := i; k < j; k++ {
+			values = append(values, intermediate[k].Value)
+		}
+		output := w.ReduceFunc(intermediate[i].Key, values)
+
+		// this is the correct format for each line of Reduce output.
+		fmt.Fprintf(ofile, "%v %v\n", intermediate[i].Key, output)
+		i = j
+	}
 	return nil
+}
+
+func readIntermediateFile(immediateFile string) ([]KeyValue, error) {
+	f, err := os.Open(immediateFile)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	var kvs []KeyValue
+	for scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			return nil, fmt.Errorf("invalid intermediate file format: %s", line)
+		}
+		kvs = append(kvs, KeyValue{Key: fields[0], Value: fields[1]})
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return kvs, nil
 }
 
 func readFileContent(filename string) (string, error) {
