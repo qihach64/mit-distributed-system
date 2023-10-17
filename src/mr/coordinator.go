@@ -82,6 +82,8 @@ type Coordinator struct {
 func (c *Coordinator) GetTask(
 	request *GetTaskRequest, response *GetTaskResponse) error {
 	fmt.Printf("GetTask request: %v\n", request)
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	for mapID, m := range c.MapTasks {
 		if m.Status == TODO {
 			c.MapTasks[mapID].Status = IN_PROGRESS
