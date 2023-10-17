@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/rpc"
 	"os"
+	"sync"
 )
 
 type TaskStatus int
@@ -74,6 +75,8 @@ type Coordinator struct {
 	// The key is the worker id, the value is the task assigned to the worker
 	// if the task is nil, it means the worker is idle
 	Workers map[string]Task
+
+	mutex sync.Mutex // protect the coordinator data structure
 }
 
 func (c *Coordinator) GetTask(
@@ -100,6 +103,8 @@ func (c *Coordinator) GetTask(
 
 func (c *Coordinator) MarkTaskAsDone(request *MarkTaskAsDoneRequest, response *MarkTaskAsDoneResponse) error {
 	fmt.Printf("MarkTaskAsDone request: %v\n", request)
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	if request.Task.GetType() == MAP {
 		mapTask := request.Task.(MapTask)
 		if mapTask.ID < 0 || mapTask.ID >= len(c.MapTasks) {
@@ -111,7 +116,6 @@ func (c *Coordinator) MarkTaskAsDone(request *MarkTaskAsDoneRequest, response *M
 		}
 	} else {
 		reduceTask := request.Task.(ReduceTask)
-		c.ReduceTasks[reduceTask.ID] = reduceTask
 		if reduceTask.ID < 0 || reduceTask.ID >= len(c.ReduceTasks) {
 			return fmt.Errorf("invalid reduce task id: %d", reduceTask.ID)
 		}
@@ -179,7 +183,7 @@ func initMapTasks(files []string, nReduce int) []MapTask {
 func initReduceTasks(nReduce int) []ReduceTask {
 	r := make([]ReduceTask, nReduce)
 	for i := 0; i < nReduce; i++ {
-		r[i] = ReduceTask{Status: TODO, ImmediateFiles: make(map[string]bool)}
+		r[i] = ReduceTask{ID: i, Status: TODO, ImmediateFiles: make(map[string]bool)}
 	}
 	return r
 }
