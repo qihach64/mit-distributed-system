@@ -11,6 +11,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -27,7 +28,6 @@ func main() {
 	debugInfo(m)
 	for m.Done() == false {
 		time.Sleep(time.Second)
-		fmt.Printf("Coordinator: waiting for tasks to execute...\n")
 		debugInfo(m)
 	}
 
@@ -35,25 +35,29 @@ func main() {
 }
 
 func debugInfo(m *mr.Coordinator) {
+	log.Println("🤖=====================================")
 	printMapTasks(m)
 	printReduceTasks(m)
 	printWorkerAssignments(m)
 }
 
 func printMapTasks(m *mr.Coordinator) {
-	for i, task := range m.MapTasks {
-		fmt.Printf("map_id=%d: status=%s, input_file=%s\n", i, task.Status, task.InputFile)
+	log.Println("-------------[map task]--------------")
+	for _, task := range m.MapTasks {
+		log.Printf("%+v\n", task)
 	}
 }
 
 func printReduceTasks(m *mr.Coordinator) {
-	for i, task := range m.ReduceTasks {
-		fmt.Printf("reduce_id=%d: status=%s, files=%v\n", i, task.Status, task.ImmediateFiles)
+	log.Println("-------------[reduce task]--------------")
+	for _, task := range m.ReduceTasks {
+		log.Printf("%+v\n", task)
 	}
 }
 
 func printWorkerAssignments(m *mr.Coordinator) {
+	log.Println("-------------[worker]--------------")
 	for i, task := range m.Workers {
-		fmt.Printf("worker_id=%s: Task=%v\n", i, task)
+		log.Printf("worker_id=%s: Task=%+v\n", i, task)
 	}
 }

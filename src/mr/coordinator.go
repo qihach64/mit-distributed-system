@@ -81,7 +81,7 @@ type Coordinator struct {
 
 func (c *Coordinator) GetTask(
 	request *GetTaskRequest, response *GetTaskResponse) error {
-	fmt.Printf("GetTask request: %v\n", request)
+	log.Printf("📦 Received a GetTask request: %v\n", request)
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	for mapID, m := range c.MapTasks {
@@ -104,7 +104,7 @@ func (c *Coordinator) GetTask(
 }
 
 func (c *Coordinator) MarkTaskAsDone(request *MarkTaskAsDoneRequest, response *MarkTaskAsDoneResponse) error {
-	fmt.Printf("MarkTaskAsDone request: %v\n", request)
+	log.Printf("📦 Received a MarkTaskAsDone request: %v\n", request)
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	if request.Task.GetType() == MAP {
@@ -135,7 +135,7 @@ func (c *Coordinator) server() {
 	rpc.HandleHTTP()
 	//l, e := net.Listen("tcp", ":1234")
 	sockname := coordinatorSock()
-	fmt.Printf("sockname: %s\n", sockname)
+	log.Printf("sockname: %s\n", sockname)
 	os.Remove(sockname)
 	l, e := net.Listen("unix", sockname)
 	if e != nil {

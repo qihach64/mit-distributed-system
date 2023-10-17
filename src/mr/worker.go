@@ -65,19 +65,19 @@ func (w *Worker) Run() error {
 			return err
 		} // 2. execute the task
 		if task == nil {
-			log.Printf("No task to execute, worker %s is waiting ... \n", w.ID)
+			log.Printf("⏰ No task to execute, worker %s is waiting ... \n", w.ID)
 			time.Sleep(time.Second)
 			continue
 		}
 		if task.GetType() == MAP {
 			mapTask := task.(MapTask)
-			log.Printf("Worker %s is executing map task %+v\n", w.ID, mapTask)
+			log.Printf("👷 Worker %s is executing a map task %+v\n", w.ID, mapTask)
 			if err := w.DoMapTask(&mapTask); err != nil {
 				return err
 			}
 		} else {
 			reduceTask := task.(ReduceTask)
-			log.Printf("Worker %s is executing reduce task %+v\n", w.ID, reduceTask)
+			log.Printf("👷 Worker %s is executing a reduce task %+v\n", w.ID, reduceTask)
 			if err := w.DoReduceTask(&reduceTask); err != nil {
 				return err
 			}
