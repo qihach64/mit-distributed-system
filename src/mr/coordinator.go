@@ -3,6 +3,7 @@ package mr
 import (
 	"encoding/gob"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -144,6 +145,9 @@ func (c *Coordinator) MarkTaskAsDone(request *MarkTaskAsDoneRequest, response *M
 		if c.ReduceTasks[reduceTask.ID].Status != DONE {
 			c.ReduceTasks[reduceTask.ID].Status = DONE
 			log.Printf("🔥 Mark reduce task as done: %+v\n", c.ReduceTasks[reduceTask.ID])
+			src := fmt.Sprintf("mr-tmp-out-%d-%s", reduceTask.ID, request.WorkerID)
+			dst := fmt.Sprintf("mr-out-%d", reduceTask.ID)
+			copyFile(src, dst)
 		} else {
 			// ignore the duplicate reduce result
 			log.Printf("💦 Reduce task is already done: %+v\n", c.ReduceTasks[reduceTask.ID])
@@ -242,4 +246,34 @@ func initReduceTasks(nReduce int) []ReduceTask {
 		r[i] = ReduceTask{ID: i, Status: TODO, ImmediateFiles: make(map[int]string)}
 	}
 	return r
+}
+
+func copyFile(src, dst string) error {
+	// Open the source file for reading.
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	// Create the destination file for writing.
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	// Copy the contents of the source file to the destination file.
+	_, err = io.Copy(dstFile, srcFile)
+	if err != nil {
+		return err
+	}
+
+	// Flush any buffered data to the destination file.
+	err = dstFile.Sync()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

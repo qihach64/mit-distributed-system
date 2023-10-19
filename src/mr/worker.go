@@ -113,7 +113,7 @@ func (w *Worker) DoMapTask(mapTask *MapTask) error {
 
 	for _, kv := range kvs {
 		reduceID := ihash(kv.Key) % mapTask.ReduceNum
-		immediateFileName := fmt.Sprintf("mr-%d-%d", mapTask.ID, reduceID)
+		immediateFileName := fmt.Sprintf("mr-%d-%d-%s", mapTask.ID, reduceID, w.ID)
 		if _, exist := fileMap[reduceID]; !exist {
 			// truncate the file if it hasn't been opened by this map task
 			// TODO(bug): what if the file has been opened by another map task?
@@ -155,7 +155,7 @@ func (w *Worker) DoReduceTask(reduceTask *ReduceTask) error {
 	// call Reduce on each distinct key in intermediate[],
 	// and print the result to mr-out-0.
 	//
-	oname := fmt.Sprintf("mr-out-%d", reduceTask.ID)
+	oname := fmt.Sprintf("mr-tmp-out-%d-%s", reduceTask.ID, w.ID)
 	ofile, err := os.OpenFile(oname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
