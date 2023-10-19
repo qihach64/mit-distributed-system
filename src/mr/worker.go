@@ -71,13 +71,13 @@ func (w *Worker) Run() error {
 		}
 		if task.GetType() == MAP {
 			mapTask := task.(MapTask)
-			log.Printf("👷 Worker %s is executing a map task %+v\n", w.ID, mapTask)
+			log.Printf("👷⛏️ Worker %s is executing a map task %+v\n", w.ID, mapTask)
 			if err := w.DoMapTask(&mapTask); err != nil {
 				return err
 			}
 		} else {
 			reduceTask := task.(ReduceTask)
-			log.Printf("👷 Worker %s is executing a reduce task %+v\n", w.ID, reduceTask)
+			log.Printf("👷🍺 Worker %s is executing a reduce task %+v\n", w.ID, reduceTask)
 			if err := w.DoReduceTask(&reduceTask); err != nil {
 				return err
 			}
@@ -115,7 +115,10 @@ func (w *Worker) DoMapTask(mapTask *MapTask) error {
 		reduceID := ihash(kv.Key) % mapTask.ReduceNum
 		immediateFileName := fmt.Sprintf("mr-%d-%d", mapTask.ID, reduceID)
 		if _, exist := fileMap[reduceID]; !exist {
-			ofile, err := os.OpenFile(immediateFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+			// truncate the file if it hasn't been opened by this map task
+			// TODO(bug): what if the file has been opened by another map task?
+			// even with truncating, the other map task is still writing to the file
+			ofile, err := os.OpenFile(immediateFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 			if err != nil {
 				return err
 			}
@@ -138,7 +141,7 @@ func (w *Worker) MarkTaskAsDone(task Task) error {
 
 func (w *Worker) DoReduceTask(reduceTask *ReduceTask) error {
 	var intermediate []KeyValue
-	for immediateFileName := range reduceTask.ImmediateFiles {
+	for _, immediateFileName := range reduceTask.ImmediateFiles {
 		kvs, err := readIntermediateFile(immediateFileName)
 		if err != nil {
 			return err
@@ -153,7 +156,7 @@ func (w *Worker) DoReduceTask(reduceTask *ReduceTask) error {
 	// and print the result to mr-out-0.
 	//
 	oname := fmt.Sprintf("mr-out-%d", reduceTask.ID)
-	ofile, err := os.Create(oname)
+	ofile, err := os.OpenFile(oname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}

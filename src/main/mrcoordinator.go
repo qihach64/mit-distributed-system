@@ -25,39 +25,8 @@ func main() {
 	}
 
 	m := mr.MakeCoordinator(os.Args[1:], 10)
-	debugInfo(m)
 	for m.Done() == false {
 		time.Sleep(time.Second)
-		debugInfo(m)
 	}
-
-	time.Sleep(time.Second)
-}
-
-func debugInfo(m *mr.Coordinator) {
-	log.Println("🤖=====================================")
-	printMapTasks(m)
-	printReduceTasks(m)
-	printWorkerAssignments(m)
-}
-
-func printMapTasks(m *mr.Coordinator) {
-	log.Println("-------------[map task]--------------")
-	for _, task := range m.MapTasks {
-		log.Printf("%+v\n", task)
-	}
-}
-
-func printReduceTasks(m *mr.Coordinator) {
-	log.Println("-------------[reduce task]--------------")
-	for _, task := range m.ReduceTasks {
-		log.Printf("%+v\n", task)
-	}
-}
-
-func printWorkerAssignments(m *mr.Coordinator) {
-	log.Println("-------------[worker]--------------")
-	for i, task := range m.Workers {
-		log.Printf("worker_id=%s: Task=%+v\n", i, task)
-	}
+	log.Println("Job completed. exiting ...")
 }
